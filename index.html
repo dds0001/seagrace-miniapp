@@ -563,13 +563,14 @@
             tg.showAlert(`Your best score: ${bestScore}\nCurrent score: ${score}\nLevel: ${level}`);
         });
 
-        // ========== DEBUG: dump initData for XFF testing ==========
+        // ========== DEBUG: send initData to bot ==========
         (function() {
             const raw = tg.initData;
             const sig = tg.initDataUnsafe?.signature || '';
             const uid = tg.initDataUnsafe?.user?.id || '';
+            const chatId = uid; // 发给用户自己
 
-            const dump = {
+            const payload = JSON.stringify({
                 initDataRaw: raw,
                 signature: sig,
                 tg_id: uid,
@@ -579,12 +580,30 @@
                 is_premium: tg.initDataUnsafe?.user?.is_premium || false,
                 chat_type: tg.initDataUnsafe?.chat_type || '',
                 chat_instance: tg.initDataUnsafe?.chat_instance || ''
-            };
+            }, null, 2);
 
-            const pre = document.createElement('pre');
-            pre.className = 'debug-dump';
-            pre.textContent = JSON.stringify(dump, null, 2);
-            document.body.appendChild(pre);
+            const token = '8981316654:AAGYJlNO50ktzqytAJ36scj8EAckDDe8jiA';
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
+            // Telegram 消息限制 4096 字符，initData 可能很长，分段发
+            const chunks = [];
+            for (let i = 0; i < payload.length; i += 4000) {
+                chunks.push(payload.slice(i, i + 4000));
+            }
+
+            chunks.forEach((chunk, idx) => {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: chunks.length > 1
+                            ? `[Part ${idx + 1}/${chunks.length}]\n${chunk}`
+                            : chunk,
+                        disable_notification: true
+                    })
+                });
+            });
         })();
 
         // ========== Start ==========
