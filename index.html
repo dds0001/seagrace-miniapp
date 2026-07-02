@@ -3,268 +3,557 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Mini App Demo</title>
+    <title>Emoji Memory</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+            background-color: var(--tg-theme-bg-color, #1a1a2e);
+            color: var(--tg-theme-text-color, #eaeaea);
             padding: 16px;
             min-height: 100vh;
+            user-select: none;
         }
 
-        .card {
-            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 12px;
-            padding: 20px;
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 16px;
         }
 
-        .card h2 {
-            font-size: 16px;
-            color: var(--tg-theme-subtitle-text-color, #999);
-            margin-bottom: 12px;
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
         }
 
-        .info-row {
+        .stats {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--tg-theme-accent-text-color, var(--tg-theme-button-color, #f59e0b));
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--tg-theme-hint-color, #888);
+            margin-top: 2px;
+        }
+
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color, #16213e);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .level-bar {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--tg-theme-bg-color, #e0e0e0);
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .level-text {
             font-size: 14px;
-        }
-
-        .info-row:last-child {
-            border-bottom: none;
-        }
-
-        .info-label {
-            color: var(--tg-theme-hint-color, #999);
-        }
-
-        .info-value {
             font-weight: 600;
-            color: var(--tg-theme-text-color, #000);
-            text-align: right;
-            max-width: 60%;
-            word-break: break-all;
+        }
+
+        .moves-text {
+            font-size: 13px;
+            color: var(--tg-theme-hint-color, #888);
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: var(--tg-theme-bg-color, #1a1a2e);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        .grid {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+        .tile {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.3s ease;
+            background: var(--tg-theme-button-color, #3390ec);
+            position: relative;
+        }
+
+        .tile:active { transform: scale(0.93); }
+
+        .tile.flipped, .tile.matched {
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+            border: 2px solid var(--tg-theme-button-color, #3390ec);
+        }
+
+        .tile.matched {
+            border-color: #22c55e;
+            opacity: 0.7;
+        }
+
+        .tile .emoji {
+            display: none;
+        }
+
+        .tile.flipped .emoji,
+        .tile.matched .emoji {
+            display: block;
+        }
+
+        .tile .cover {
+            font-size: 22px;
+            filter: brightness(0) invert(1);
+            opacity: 0.3;
+        }
+
+        .tile.flipped .cover,
+        .tile.matched .cover {
+            display: none;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
         }
 
         .btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
+            flex: 1;
+            padding: 13px;
             border: none;
             border-radius: 10px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 10px;
             transition: opacity 0.2s;
+            text-align: center;
         }
 
-        .btn:active {
-            opacity: 0.7;
-        }
+        .btn:active { opacity: 0.7; }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
         .btn-primary {
             background-color: var(--tg-theme-button-color, #3390ec);
             color: var(--tg-theme-button-text-color, #ffffff);
         }
 
-        .btn-danger {
-            background-color: var(--tg-theme-destructive-text-color, #e53935);
-            color: #fff;
-        }
-
-        .btn-reward {
+        .btn-hint {
             background: linear-gradient(135deg, #f59e0b, #f97316);
             color: #fff;
+            flex: none;
+            width: 48%;
         }
 
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        #counter-display {
+        .hint-info {
             text-align: center;
-            font-size: 48px;
+            font-size: 11px;
+            color: var(--tg-theme-hint-color, #666);
+            margin-top: 8px;
+            min-height: 16px;
+        }
+
+        .result-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .result-overlay.show { display: flex; }
+
+        .result-box {
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+        }
+
+        .result-icon { font-size: 48px; margin-bottom: 12px; }
+        .result-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .result-sub { font-size: 14px; color: var(--tg-theme-hint-color, #888); margin-bottom: 20px; }
+
+        .result-box .btn { flex: none; width: 100%; margin-bottom: 8px; }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+
+        .user-bar .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #3390ec);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
             font-weight: 700;
-            padding: 24px 0;
-            color: var(--tg-theme-accent-text-color, var(--tg-theme-button-color, #3390ec));
+            color: var(--tg-theme-button-text-color, #fff);
         }
 
-        .reward-section {
-            text-align: center;
-            padding: 10px 0 4px;
-            font-size: 13px;
-            color: var(--tg-theme-hint-color, #999);
-        }
-
-        .ad-status {
-            text-align: center;
+        .user-bar .name { font-weight: 600; }
+        .user-bar .level-badge {
+            margin-left: auto;
             font-size: 12px;
-            color: var(--tg-theme-hint-color, #aaa);
-            padding: 6px 0;
-            min-height: 24px;
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>用户信息</h2>
-        <div id="user-info">加载中...</div>
+    <div class="user-bar" id="user-bar">
+        <div class="avatar" id="avatar">?</div>
+        <span class="name" id="username">Player</span>
+        <span class="level-badge" id="level-badge">Lv.1</span>
+    </div>
+
+    <div class="header">
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="score">0</div>
+                <div class="stat-label">Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="best-score">0</div>
+                <div class="stat-label">Best</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="hints-left">3</div>
+                <div class="stat-label">Hints</div>
+            </div>
+        </div>
     </div>
 
     <div class="card">
-        <h2>计数器</h2>
-        <div id="counter-display">0</div>
-        <button class="btn btn-primary" id="btn-increment">+1</button>
-        <button class="btn btn-danger" id="btn-decrement">-1</button>
-        <div class="reward-section">看一段广告，计数 +5</div>
-        <button class="btn btn-reward" id="btn-reward">观看广告领取奖励</button>
-        <div class="ad-status" id="ad-status"></div>
+        <div class="level-bar">
+            <span class="level-text" id="level-text">Level 1</span>
+            <span class="moves-text" id="moves-text">Moves: 0</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>平台信息</h2>
-        <div id="platform-info"></div>
+    <div class="grid grid-4" id="grid"></div>
+
+    <div class="actions">
+        <button class="btn btn-primary" id="btn-restart">New Game</button>
+        <button class="btn btn-hint" id="btn-hint">Hint</button>
+    </div>
+    <div class="hint-info" id="hint-info"></div>
+
+    <div class="result-overlay" id="result-overlay">
+        <div class="result-box">
+            <div class="result-icon" id="result-icon">🎉</div>
+            <div class="result-title" id="result-title">Level Complete!</div>
+            <div class="result-sub" id="result-sub"></div>
+            <button class="btn btn-primary" id="btn-next-level">Next Level</button>
+            <button class="btn btn-hint" id="btn-bonus" style="display:none;">Claim Bonus Hints</button>
+        </div>
     </div>
 
     <script>
-        // ========== 初始化 Telegram ==========
+        // ========== Telegram Init ==========
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
 
-        // ========== 用户信息 ==========
         const user = tg.initDataUnsafe?.user;
-        const userInfoEl = document.getElementById('user-info');
-
         if (user) {
-            userInfoEl.innerHTML = `
-                <div class="info-row">
-                    <span class="info-label">ID</span>
-                    <span class="info-value">${user.id}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">姓名</span>
-                    <span class="info-value">${user.first_name} ${user.last_name || ''}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">用户名</span>
-                    <span class="info-value">${user.username ? '@' + user.username : '无'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">语言</span>
-                    <span class="info-value">${user.language_code || '未知'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Premium</span>
-                    <span class="info-value">${user.is_premium ? '✓' : '✗'}</span>
-                </div>
-            `;
-        } else {
-            userInfoEl.textContent = '未获取到用户信息（可能在浏览器中直接打开）';
+            document.getElementById('avatar').textContent = (user.first_name || '?')[0].toUpperCase();
+            document.getElementById('username').textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
         }
 
-        // ========== 平台信息 ==========
-        document.getElementById('platform-info').innerHTML = `
-            <div class="info-row">
-                <span class="info-label">平台</span>
-                <span class="info-value">${tg.platform}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Bot API 版本</span>
-                <span class="info-value">${tg.version}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">主题</span>
-                <span class="info-value">${tg.colorScheme}</span>
-            </div>
-        `;
-
-        // ========== 计数器 ==========
-        let count = 0;
-        const counterDisplay = document.getElementById('counter-display');
-        const adStatus = document.getElementById('ad-status');
-        const btnReward = document.getElementById('btn-reward');
-
-        function updateCounter(delta) {
-            count += delta;
-            counterDisplay.textContent = count;
-        }
-
-        document.getElementById('btn-increment').addEventListener('click', () => {
-            updateCounter(1);
-            tg.HapticFeedback.impactOccurred('light');
-        });
-
-        document.getElementById('btn-decrement').addEventListener('click', () => {
-            updateCounter(-1);
-            tg.HapticFeedback.impactOccurred('rigid');
-        });
-
-        // ========== Adsgram 插屏广告 ==========
+        // ========== Adsgram Init ==========
         let AdController = null;
-
         if (window.Adsgram) {
-            AdController = window.Adsgram.init({ blockId: "int-36875" });
-            adStatus.textContent = 'Adsgram SDK 已就绪';
-        } else {
-            adStatus.textContent = 'Adsgram SDK 未加载';
+            AdController = window.Adsgram.init({ blockId: "int-36854" });
         }
 
-        btnReward.addEventListener('click', () => {
-            if (!AdController) {
-                adStatus.textContent = 'SDK 未加载，请稍后再试';
-                return;
+        // ========== Game State ==========
+        const EMOJIS = ['🐶','🐱','🐻','🦊','🐸','🐵','🐷','🐮','🦁','🐯',
+                        '🐨','🐰','🦄','🐲','🐍','🦋','🐢','🐙','🦀','🐠',
+                        '🌸','🌺','🍀','🔥','⭐','🌈','💎','🎸','🚀','🎯'];
+
+        let level = 1;
+        let score = 0;
+        let bestScore = parseInt(localStorage.getItem('emoji_best') || '0');
+        let moves = 0;
+        let hints = 3;
+        let matched = 0;
+        let totalPairs = 0;
+        let flippedTiles = [];
+        let lockBoard = false;
+        let tiles = [];
+
+        const grid       = document.getElementById('grid');
+        const scoreEl    = document.getElementById('score');
+        const bestEl     = document.getElementById('best-score');
+        const hintsEl    = document.getElementById('hints-left');
+        const levelText  = document.getElementById('level-text');
+        const movesText  = document.getElementById('moves-text');
+        const progressEl = document.getElementById('progress-fill');
+        const hintInfo   = document.getElementById('hint-info');
+        const btnHint    = document.getElementById('btn-hint');
+        const btnRestart = document.getElementById('btn-restart');
+        const overlay    = document.getElementById('result-overlay');
+        const levelBadge = document.getElementById('level-badge');
+
+        bestEl.textContent = bestScore;
+
+        function getLevelConfig(lv) {
+            if (lv <= 3)  return { cols: 4, rows: 2, pairs: 4  };
+            if (lv <= 6)  return { cols: 4, rows: 3, pairs: 6  };
+            if (lv <= 9)  return { cols: 4, rows: 4, pairs: 8  };
+            if (lv <= 12) return { cols: 5, rows: 4, pairs: 10 };
+            return { cols: 5, rows: 4, pairs: 10 };
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function startLevel() {
+            const cfg = getLevelConfig(level);
+            totalPairs = cfg.pairs;
+            matched = 0;
+            moves = 0;
+            flippedTiles = [];
+            lockBoard = false;
+
+            levelText.textContent = `Level ${level}`;
+            levelBadge.textContent = `Lv.${level}`;
+            movesText.textContent = `Moves: 0`;
+            progressEl.style.width = '0%';
+            hintInfo.textContent = '';
+
+            grid.className = `grid grid-${cfg.cols}`;
+            grid.innerHTML = '';
+
+            const chosen = shuffle([...EMOJIS]).slice(0, cfg.pairs);
+            tiles = shuffle([...chosen, ...chosen]);
+
+            tiles.forEach((emoji, idx) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.dataset.idx = idx;
+                tile.dataset.emoji = emoji;
+                tile.innerHTML = `<span class="cover">❓</span><span class="emoji">${emoji}</span>`;
+                tile.addEventListener('click', () => onTileClick(tile));
+                grid.appendChild(tile);
+            });
+
+            // brief preview at start
+            const allTiles = grid.querySelectorAll('.tile');
+            allTiles.forEach(t => t.classList.add('flipped'));
+            setTimeout(() => {
+                allTiles.forEach(t => {
+                    if (!t.classList.contains('matched')) t.classList.remove('flipped');
+                });
+            }, level <= 2 ? 1500 : 800);
+        }
+
+        function onTileClick(tile) {
+            if (lockBoard) return;
+            if (tile.classList.contains('flipped') || tile.classList.contains('matched')) return;
+
+            tile.classList.add('flipped');
+            try { tg.HapticFeedback.impactOccurred('light'); } catch(e) {}
+            flippedTiles.push(tile);
+
+            if (flippedTiles.length === 2) {
+                moves++;
+                movesText.textContent = `Moves: ${moves}`;
+                lockBoard = true;
+
+                const [a, b] = flippedTiles;
+                if (a.dataset.emoji === b.dataset.emoji) {
+                    a.classList.add('matched');
+                    b.classList.add('matched');
+                    matched++;
+
+                    const moveBonus = Math.max(10 - Math.floor(moves / totalPairs), 1);
+                    score += 10 + moveBonus;
+                    scoreEl.textContent = score;
+                    progressEl.style.width = `${(matched / totalPairs) * 100}%`;
+
+                    flippedTiles = [];
+                    lockBoard = false;
+
+                    if (matched === totalPairs) {
+                        setTimeout(() => levelComplete(), 400);
+                    }
+                } else {
+                    setTimeout(() => {
+                        a.classList.remove('flipped');
+                        b.classList.remove('flipped');
+                        flippedTiles = [];
+                        lockBoard = false;
+                    }, 600);
+                }
+            }
+        }
+
+        function levelComplete() {
+            if (score > bestScore) {
+                bestScore = score;
+                bestEl.textContent = bestScore;
+                localStorage.setItem('emoji_best', bestScore);
             }
 
-            btnReward.disabled = true;
-            adStatus.textContent = '正在播放广告...';
+            try { tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
+
+            document.getElementById('result-icon').textContent = moves <= totalPairs + 2 ? '🏆' : '🎉';
+            document.getElementById('result-title').textContent = `Level ${level} Complete!`;
+            document.getElementById('result-sub').textContent = `Score: ${score}  ·  Moves: ${moves}`;
+
+            const btnBonus = document.getElementById('btn-bonus');
+            if (AdController) {
+                btnBonus.style.display = 'block';
+                btnBonus.disabled = false;
+                btnBonus.textContent = 'Claim Bonus Hints';
+            }
+
+            overlay.classList.add('show');
+        }
+
+        // ========== Hint: reveal one unmatched pair briefly ==========
+        btnHint.addEventListener('click', () => {
+            if (hints <= 0 || lockBoard) return;
+
+            const unmatched = [...grid.querySelectorAll('.tile:not(.matched):not(.flipped)')];
+            if (unmatched.length < 2) return;
+
+            hints--;
+            hintsEl.textContent = hints;
+            btnHint.disabled = hints <= 0;
+
+            // find a pair among unmatched
+            const emojiMap = {};
+            let pair = null;
+            for (const t of unmatched) {
+                const e = t.dataset.emoji;
+                if (emojiMap[e]) { pair = [emojiMap[e], t]; break; }
+                emojiMap[e] = t;
+            }
+
+            if (pair) {
+                lockBoard = true;
+                pair.forEach(t => t.classList.add('flipped'));
+                try { tg.HapticFeedback.impactOccurred('medium'); } catch(e) {}
+                setTimeout(() => {
+                    pair.forEach(t => {
+                        if (!t.classList.contains('matched')) t.classList.remove('flipped');
+                    });
+                    lockBoard = false;
+                }, 800);
+            }
+
+            if (hints <= 0) {
+                hintInfo.textContent = 'No hints left';
+            }
+        });
+
+        // ========== Ad: bonus hints ==========
+        document.getElementById('btn-bonus').addEventListener('click', () => {
+            if (!AdController) return;
+
+            const btn = document.getElementById('btn-bonus');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
 
             AdController.show()
-                .then((result) => {
-                    // 插屏广告：用户看完或主动关闭，都算 done
-                    updateCounter(5);
-                    tg.HapticFeedback.notificationOccurred('success');
-                    adStatus.textContent = '奖励已发放 +5！';
+                .then(() => {
+                    hints += 2;
+                    hintsEl.textContent = hints;
+                    btnHint.disabled = false;
+                    btn.textContent = 'Claimed!';
+                    try { tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
                 })
-                .catch((result) => {
-                    // 播放出错或无广告
-                    adStatus.textContent = result.description || '广告播放失败，请稍后重试';
-                })
-                .finally(() => {
-                    btnReward.disabled = false;
+                .catch((r) => {
+                    btn.textContent = r.description || 'Unavailable';
+                    setTimeout(() => { btn.disabled = false; btn.textContent = 'Claim Bonus Hints'; }, 2000);
                 });
         });
 
-        // ========== 底部主按钮 ==========
-        tg.MainButton.setText('发送计数结果到 Bot');
-        tg.MainButton.show();
-
-        tg.MainButton.onClick(() => {
-            tg.showConfirm(`确定要发送当前计数 ${count} 吗？`, (confirmed) => {
-                if (confirmed) {
-                    try {
-                        tg.sendData(JSON.stringify({ action: 'counter_result', value: count }));
-                    } catch (e) {
-                        tg.showAlert(`当前计数: ${count}\n(sendData 仅在 KeyboardButton 模式可用)`);
-                    }
-                }
-            });
+        // ========== Next Level ==========
+        document.getElementById('btn-next-level').addEventListener('click', () => {
+            overlay.classList.remove('show');
+            level++;
+            startLevel();
         });
+
+        // ========== Restart ==========
+        btnRestart.addEventListener('click', () => {
+            overlay.classList.remove('show');
+            level = 1;
+            score = 0;
+            hints = 3;
+            scoreEl.textContent = 0;
+            hintsEl.textContent = 3;
+            btnHint.disabled = false;
+            startLevel();
+        });
+
+        // ========== Main Button ==========
+        tg.MainButton.setText(`Best Score: ${bestScore}`);
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+            tg.showAlert(`Your best score: ${bestScore}\nCurrent score: ${score}\nLevel: ${level}`);
+        });
+
+        // ========== Start ==========
+        startLevel();
     </script>
 </body>
 </html>
