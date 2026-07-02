@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Mini App Demo</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="//libtl.com/sdk.js" data-zone="11227442" data-sdk="show_11227442"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -205,7 +205,6 @@
             counterDisplay.textContent = count;
         }
 
-        // 普通 +1 / -1
         document.getElementById('btn-increment').addEventListener('click', () => {
             updateCounter(1);
             tg.HapticFeedback.impactOccurred('light');
@@ -216,37 +215,18 @@
             tg.HapticFeedback.impactOccurred('rigid');
         });
 
-        // ========== Rewarded Interstitial：看广告 +5 ==========
-        let adReady = false;
-        let adLoading = false;
+        // ========== Adsgram 插屏广告 ==========
+        let AdController = null;
 
-        function preloadAd() {
-            if (typeof show_11227442 !== 'function') {
-                adStatus.textContent = 'SDK 未加载';
-                return;
-            }
-
-            adLoading = true;
-            adStatus.textContent = '广告预加载中...';
-            btnReward.disabled = true;
-
-            show_11227442({ type: 'preload' })
-                .then(() => {
-                    adReady = true;
-                    adLoading = false;
-                    adStatus.textContent = '广告已就绪';
-                    btnReward.disabled = false;
-                })
-                .catch(() => {
-                    adReady = false;
-                    adLoading = false;
-                    adStatus.textContent = '暂无可用广告';
-                    btnReward.disabled = false;
-                });
+        if (window.Adsgram) {
+            AdController = window.Adsgram.init({ blockId: "int-36854" });
+            adStatus.textContent = 'Adsgram SDK 已就绪';
+        } else {
+            adStatus.textContent = 'Adsgram SDK 未加载';
         }
 
         btnReward.addEventListener('click', () => {
-            if (typeof show_11227442 !== 'function') {
+            if (!AdController) {
                 adStatus.textContent = 'SDK 未加载，请稍后再试';
                 return;
             }
@@ -254,56 +234,21 @@
             btnReward.disabled = true;
             adStatus.textContent = '正在播放广告...';
 
-            show_11227442()
+            AdController.show()
                 .then((result) => {
-                    // 广告观看完成，发放奖励
+                    // 插屏广告：用户看完或主动关闭，都算 done
                     updateCounter(5);
                     tg.HapticFeedback.notificationOccurred('success');
-                    adStatus.textContent = '奖励已发放！';
-
-                    // 预加载下一条
-                    setTimeout(() => preloadAd(), 1000);
+                    adStatus.textContent = '奖励已发放 +5！';
                 })
-                .catch(() => {
-                    adStatus.textContent = '广告播放失败，请稍后重试';
+                .catch((result) => {
+                    // 播放出错或无广告
+                    adStatus.textContent = result.description || '广告播放失败，请稍后重试';
+                })
+                .finally(() => {
                     btnReward.disabled = false;
-
-                    // 重新预加载
-                    setTimeout(() => preloadAd(), 2000);
                 });
         });
-
-        // ========== In-App Interstitial：被动展示 ==========
-        function initInAppAds() {
-            if (typeof show_11227442 !== 'function') return;
-
-            show_11227442({
-                type: 'inApp',
-                inAppSettings: {
-                    frequency: 2,
-                    capping: 0.1,
-                    interval: 30,
-                    timeout: 5,
-                    everyPage: false
-                }
-            });
-        }
-
-        // ========== 启动 ==========
-        // SDK 是异步加载的，轮询等它就绪
-        let sdkCheckCount = 0;
-        const sdkCheckInterval = setInterval(() => {
-            sdkCheckCount++;
-            if (typeof show_11227442 === 'function') {
-                clearInterval(sdkCheckInterval);
-                preloadAd();
-                initInAppAds();
-            } else if (sdkCheckCount > 30) {
-                // 15秒还没加载出来，放弃
-                clearInterval(sdkCheckInterval);
-                adStatus.textContent = 'SDK 加载超时';
-            }
-        }, 500);
 
         // ========== 底部主按钮 ==========
         tg.MainButton.setText('发送计数结果到 Bot');
