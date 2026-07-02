@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Mini App Demo</title>
-    <!-- 必须在所有脚本之前引入 -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="//libtl.com/sdk.js" data-zone="11227442" data-sdk="show_11227442"></script>
     <style>
         * {
             margin: 0;
@@ -15,7 +15,6 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            /* 使用 Telegram 主题变量自动适配 Day/Night 模式 */
             background-color: var(--tg-theme-bg-color, #ffffff);
             color: var(--tg-theme-text-color, #000000);
             padding: 16px;
@@ -69,13 +68,31 @@
             font-weight: 600;
             cursor: pointer;
             margin-bottom: 10px;
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
             transition: opacity 0.2s;
         }
 
         .btn:active {
             opacity: 0.7;
+        }
+
+        .btn-primary {
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+
+        .btn-danger {
+            background-color: var(--tg-theme-destructive-text-color, #e53935);
+            color: #fff;
+        }
+
+        .btn-reward {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
         }
 
         #counter-display {
@@ -84,6 +101,21 @@
             font-weight: 700;
             padding: 24px 0;
             color: var(--tg-theme-accent-text-color, var(--tg-theme-button-color, #3390ec));
+        }
+
+        .reward-section {
+            text-align: center;
+            padding: 10px 0 4px;
+            font-size: 13px;
+            color: var(--tg-theme-hint-color, #999);
+        }
+
+        .ad-status {
+            text-align: center;
+            font-size: 12px;
+            color: var(--tg-theme-hint-color, #aaa);
+            padding: 6px 0;
+            min-height: 24px;
         }
     </style>
 </head>
@@ -97,8 +129,11 @@
     <div class="card">
         <h2>计数器</h2>
         <div id="counter-display">0</div>
-        <button class="btn" id="btn-increment">+1</button>
-        <button class="btn" id="btn-decrement" style="background-color: var(--tg-theme-destructive-text-color, #e53935); color: #fff;">-1</button>
+        <button class="btn btn-primary" id="btn-increment">+1</button>
+        <button class="btn btn-danger" id="btn-decrement">-1</button>
+        <div class="reward-section">看一段广告，计数 +5</div>
+        <button class="btn btn-reward" id="btn-reward">观看广告领取奖励</button>
+        <div class="ad-status" id="ad-status"></div>
     </div>
 
     <div class="card">
@@ -107,16 +142,12 @@
     </div>
 
     <script>
-        // ========== 初始化 ==========
+        // ========== 初始化 Telegram ==========
         const tg = window.Telegram.WebApp;
-
-        // 告诉 Telegram 客户端 Mini App 已准备好
         tg.ready();
-
-        // 展开到最大高度
         tg.expand();
 
-        // ========== 读取用户信息 ==========
+        // ========== 用户信息 ==========
         const user = tg.initDataUnsafe?.user;
         const userInfoEl = document.getElementById('user-info');
 
@@ -163,38 +194,128 @@
             </div>
         `;
 
-        // ========== 计数器逻辑 ==========
+        // ========== 计数器 ==========
         let count = 0;
         const counterDisplay = document.getElementById('counter-display');
+        const adStatus = document.getElementById('ad-status');
+        const btnReward = document.getElementById('btn-reward');
 
-        document.getElementById('btn-increment').addEventListener('click', () => {
-            count++;
+        function updateCounter(delta) {
+            count += delta;
             counterDisplay.textContent = count;
-            // 触觉反馈 - 轻触感
+        }
+
+        // 普通 +1 / -1
+        document.getElementById('btn-increment').addEventListener('click', () => {
+            updateCounter(1);
             tg.HapticFeedback.impactOccurred('light');
         });
 
         document.getElementById('btn-decrement').addEventListener('click', () => {
-            count--;
-            counterDisplay.textContent = count;
+            updateCounter(-1);
             tg.HapticFeedback.impactOccurred('rigid');
         });
+
+        // ========== Rewarded Interstitial：看广告 +5 ==========
+        let adReady = false;
+        let adLoading = false;
+
+        function preloadAd() {
+            if (typeof show_11227442 !== 'function') {
+                adStatus.textContent = 'SDK 未加载';
+                return;
+            }
+
+            adLoading = true;
+            adStatus.textContent = '广告预加载中...';
+            btnReward.disabled = true;
+
+            show_11227442({ type: 'preload' })
+                .then(() => {
+                    adReady = true;
+                    adLoading = false;
+                    adStatus.textContent = '广告已就绪';
+                    btnReward.disabled = false;
+                })
+                .catch(() => {
+                    adReady = false;
+                    adLoading = false;
+                    adStatus.textContent = '暂无可用广告';
+                    btnReward.disabled = false;
+                });
+        }
+
+        btnReward.addEventListener('click', () => {
+            if (typeof show_11227442 !== 'function') {
+                adStatus.textContent = 'SDK 未加载，请稍后再试';
+                return;
+            }
+
+            btnReward.disabled = true;
+            adStatus.textContent = '正在播放广告...';
+
+            show_11227442()
+                .then((result) => {
+                    // 广告观看完成，发放奖励
+                    updateCounter(5);
+                    tg.HapticFeedback.notificationOccurred('success');
+                    adStatus.textContent = '奖励已发放！';
+
+                    // 预加载下一条
+                    setTimeout(() => preloadAd(), 1000);
+                })
+                .catch(() => {
+                    adStatus.textContent = '广告播放失败，请稍后重试';
+                    btnReward.disabled = false;
+
+                    // 重新预加载
+                    setTimeout(() => preloadAd(), 2000);
+                });
+        });
+
+        // ========== In-App Interstitial：被动展示 ==========
+        function initInAppAds() {
+            if (typeof show_11227442 !== 'function') return;
+
+            show_11227442({
+                type: 'inApp',
+                inAppSettings: {
+                    frequency: 2,
+                    capping: 0.1,
+                    interval: 30,
+                    timeout: 5,
+                    everyPage: false
+                }
+            });
+        }
+
+        // ========== 启动 ==========
+        // SDK 是异步加载的，轮询等它就绪
+        let sdkCheckCount = 0;
+        const sdkCheckInterval = setInterval(() => {
+            sdkCheckCount++;
+            if (typeof show_11227442 === 'function') {
+                clearInterval(sdkCheckInterval);
+                preloadAd();
+                initInAppAds();
+            } else if (sdkCheckCount > 30) {
+                // 15秒还没加载出来，放弃
+                clearInterval(sdkCheckInterval);
+                adStatus.textContent = 'SDK 加载超时';
+            }
+        }, 500);
 
         // ========== 底部主按钮 ==========
         tg.MainButton.setText('发送计数结果到 Bot');
         tg.MainButton.show();
 
         tg.MainButton.onClick(() => {
-            // showConfirm 弹出原生确认弹窗
             tg.showConfirm(`确定要发送当前计数 ${count} 吗？`, (confirmed) => {
                 if (confirmed) {
-                    // sendData 把数据发回给 Bot（仅 Keyboard Button 模式可用）
-                    // 如果是 inline button / menu button 启动的，你需要通过自己的后端 API 处理
                     try {
                         tg.sendData(JSON.stringify({ action: 'counter_result', value: count }));
                     } catch (e) {
-                        // 非 keyboard button 模式下 sendData 会报错
-                        tg.showAlert(`当前计数: ${count}\n(sendData 仅在 KeyboardButton 模式可用，其他模式请走后端 API)`);
+                        tg.showAlert(`当前计数: ${count}\n(sendData 仅在 KeyboardButton 模式可用)`);
                     }
                 }
             });
