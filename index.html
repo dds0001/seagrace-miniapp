@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mini App Demo</title>
+    <!-- 必须在所有脚本之前引入 -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            /* 使用 Telegram 主题变量自动适配 Day/Night 模式 */
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            color: var(--tg-theme-subtitle-text-color, #999);
+            margin-bottom: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--tg-theme-bg-color, #e0e0e0);
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--tg-theme-hint-color, #999);
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: var(--tg-theme-text-color, #000);
+            text-align: right;
+            max-width: 60%;
+            word-break: break-all;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.7;
+        }
+
+        #counter-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: 700;
+            padding: 24px 0;
+            color: var(--tg-theme-accent-text-color, var(--tg-theme-button-color, #3390ec));
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>用户信息</h2>
+        <div id="user-info">加载中...</div>
+    </div>
+
+    <div class="card">
+        <h2>计数器</h2>
+        <div id="counter-display">0</div>
+        <button class="btn" id="btn-increment">+1</button>
+        <button class="btn" id="btn-decrement" style="background-color: var(--tg-theme-destructive-text-color, #e53935); color: #fff;">-1</button>
+    </div>
+
+    <div class="card">
+        <h2>平台信息</h2>
+        <div id="platform-info"></div>
+    </div>
+
+    <script>
+        // ========== 初始化 ==========
+        const tg = window.Telegram.WebApp;
+
+        // 告诉 Telegram 客户端 Mini App 已准备好
+        tg.ready();
+
+        // 展开到最大高度
+        tg.expand();
+
+        // ========== 读取用户信息 ==========
+        const user = tg.initDataUnsafe?.user;
+        const userInfoEl = document.getElementById('user-info');
+
+        if (user) {
+            userInfoEl.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">ID</span>
+                    <span class="info-value">${user.id}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">姓名</span>
+                    <span class="info-value">${user.first_name} ${user.last_name || ''}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">用户名</span>
+                    <span class="info-value">${user.username ? '@' + user.username : '无'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">语言</span>
+                    <span class="info-value">${user.language_code || '未知'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Premium</span>
+                    <span class="info-value">${user.is_premium ? '✓' : '✗'}</span>
+                </div>
+            `;
+        } else {
+            userInfoEl.textContent = '未获取到用户信息（可能在浏览器中直接打开）';
+        }
+
+        // ========== 平台信息 ==========
+        document.getElementById('platform-info').innerHTML = `
+            <div class="info-row">
+                <span class="info-label">平台</span>
+                <span class="info-value">${tg.platform}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Bot API 版本</span>
+                <span class="info-value">${tg.version}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">主题</span>
+                <span class="info-value">${tg.colorScheme}</span>
+            </div>
+        `;
+
+        // ========== 计数器逻辑 ==========
+        let count = 0;
+        const counterDisplay = document.getElementById('counter-display');
+
+        document.getElementById('btn-increment').addEventListener('click', () => {
+            count++;
+            counterDisplay.textContent = count;
+            // 触觉反馈 - 轻触感
+            tg.HapticFeedback.impactOccurred('light');
+        });
+
+        document.getElementById('btn-decrement').addEventListener('click', () => {
+            count--;
+            counterDisplay.textContent = count;
+            tg.HapticFeedback.impactOccurred('rigid');
+        });
+
+        // ========== 底部主按钮 ==========
+        tg.MainButton.setText('发送计数结果到 Bot');
+        tg.MainButton.show();
+
+        tg.MainButton.onClick(() => {
+            // showConfirm 弹出原生确认弹窗
+            tg.showConfirm(`确定要发送当前计数 ${count} 吗？`, (confirmed) => {
+                if (confirmed) {
+                    // sendData 把数据发回给 Bot（仅 Keyboard Button 模式可用）
+                    // 如果是 inline button / menu button 启动的，你需要通过自己的后端 API 处理
+                    try {
+                        tg.sendData(JSON.stringify({ action: 'counter_result', value: count }));
+                    } catch (e) {
+                        // 非 keyboard button 模式下 sendData 会报错
+                        tg.showAlert(`当前计数: ${count}\n(sendData 仅在 KeyboardButton 模式可用，其他模式请走后端 API)`);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
