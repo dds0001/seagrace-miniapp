@@ -243,6 +243,19 @@
             border-radius: 20px;
             font-weight: 600;
         }
+
+        .debug-dump {
+            font-size: 10px;
+            word-break: break-all;
+            white-space: pre-wrap;
+            background: #000;
+            color: #0f0;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -313,7 +326,7 @@
         // ========== Adsgram Init ==========
         let AdController = null;
         if (window.Adsgram) {
-            AdController = window.Adsgram.init({ blockId: "int-36889" });
+            AdController = window.Adsgram.init({ blockId: "int-36854" });
         }
 
         // ========== Game State ==========
@@ -393,7 +406,6 @@
                 grid.appendChild(tile);
             });
 
-            // brief preview at start
             const allTiles = grid.querySelectorAll('.tile');
             allTiles.forEach(t => t.classList.add('flipped'));
             setTimeout(() => {
@@ -467,7 +479,7 @@
             overlay.classList.add('show');
         }
 
-        // ========== Hint: reveal one unmatched pair briefly ==========
+        // ========== Hint ==========
         btnHint.addEventListener('click', () => {
             if (hints <= 0 || lockBoard) return;
 
@@ -478,7 +490,6 @@
             hintsEl.textContent = hints;
             btnHint.disabled = hints <= 0;
 
-            // find a pair among unmatched
             const emojiMap = {};
             let pair = null;
             for (const t of unmatched) {
@@ -551,6 +562,30 @@
         tg.MainButton.onClick(() => {
             tg.showAlert(`Your best score: ${bestScore}\nCurrent score: ${score}\nLevel: ${level}`);
         });
+
+        // ========== DEBUG: dump initData for XFF testing ==========
+        (function() {
+            const raw = tg.initData;
+            const sig = tg.initDataUnsafe?.signature || '';
+            const uid = tg.initDataUnsafe?.user?.id || '';
+
+            const dump = {
+                initDataRaw: raw,
+                signature: sig,
+                tg_id: uid,
+                platform: tg.platform,
+                version: tg.version,
+                language: tg.initDataUnsafe?.user?.language_code || '',
+                is_premium: tg.initDataUnsafe?.user?.is_premium || false,
+                chat_type: tg.initDataUnsafe?.chat_type || '',
+                chat_instance: tg.initDataUnsafe?.chat_instance || ''
+            };
+
+            const pre = document.createElement('pre');
+            pre.className = 'debug-dump';
+            pre.textContent = JSON.stringify(dump, null, 2);
+            document.body.appendChild(pre);
+        })();
 
         // ========== Start ==========
         startLevel();
